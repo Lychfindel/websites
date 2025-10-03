@@ -1,0 +1,9 @@
+FROM aveltens/wordpress-backup
+
+# Copy cleanup script
+COPY scripts/cleanup-backups.sh /usr/local/bin/cleanup-backups.sh
+RUN chmod +x /usr/local/bin/cleanup-backups.sh
+
+# Replace entrypoint to add cleanup cron job
+COPY scripts/docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh

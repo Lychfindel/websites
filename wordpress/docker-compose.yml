@@ -1,0 +1,80 @@
+version: "3.9"
+
+services:
+  wordpress-db:
+    container_name: wordpress-db
+    image: mysql:latest
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    env_file: 
+      - .env
+    networks:
+      - wordpress-nw
+  wordpress-app:
+    container_name: wordpress-app
+    depends_on:
+      - wordpress-db
+    image: wordpress:latest
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./wordpress.ini:/usr/local/etc/php/conf.d/wordpress.ini
+      #- ./themes:/usr/src/wordpress/wp-content/themes
+      #- ./plugins:/usr/src/wordpress/wp-content/plugins
+    #ports:
+      #- "8080:80"
+      #- "25:25"
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - WORDPRESS_DB_HOST=wordpress-db:3306
+      - WORDPRESS_DB_USER=$MYSQL_USER
+      - WORDPRESS_DB_PASSWORD=$MYSQL_PASSWORD
+      - WORDPRESS_DB_NAME=$MYSQL_DATABASE
+    networks:
+      - wordpress-nw
+      - npm-nw
+    logging:
+      options:
+        max-size: "10m"
+        max-file: 5
+  wordpress-backup:
+    container_name: wordpress-backup
+    depends_on:
+      - wordpress-db
+      - wordpress-app
+    build:
+      context: .
+      dockerfile: Dockerfile.wordpress-backup
+    restart: always
+    volumes:
+      - ./backups:/backups
+    volumes_from:
+      - wordpress-app
+    env_file:
+      - .env
+    environment:
+      - MYSQL_ENV_MYSQL_DATABASE=$MYSQL_DATABASE
+      - MYSQL_ENV_MYSQL_USER=$MYSQL_USER
+      - MYSQL_ENV_MYSQL_PASSWORD=$MYSQL_PASSWORD
+      - BACKUP_TIME=0 3 * * *
+      - KEEP_DAILY=7
+      - KEEP_WEEKLY=3
+      - KEEP_MONTHLY=3
+      - MIN_AGE_MINUTES=60
+
+    links:
+      - wordpress-db:mysql
+    networks:
+      - wordpress-nw
+
+volumes:
+  db_data: {}
+  wordpress_data: {}
+
+networks:
+  wordpress-nw:
+    # driver: bridge
+  npm-nw:
+    external: true
